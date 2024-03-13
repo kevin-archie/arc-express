@@ -1,13 +1,10 @@
 const app = require('./app');
 const config = require('./config/config');
 const logger = require('./config/logger');
-const { connectToSupabase } = require('./config/supabase');
 
-let server;
-// connectToSupabase().then(() => {
-  server = app.listen(config.port, () => {
-    logger.info(`Listening to port ${config.port} 🚀`);
-  });
+const server = app.listen(config.port, () => {
+  logger.info(`Listening to port ${config.port} 🚀`);
+});
 // });
 
 const exitHandler = () => {
