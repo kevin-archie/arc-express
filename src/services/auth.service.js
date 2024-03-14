@@ -1,116 +1,120 @@
 const httpStatus = require('http-status');
-const Boom = require('@hapi/boom');
-const tokenService = require('./token.service');
-const userService = require('./user.service');
-const Token = require('../models/token.model');
 const ApiError = require('../utils/ApiError');
-const { tokenTypes } = require('../config/tokens');
+const supabase = require('../config/supabase');
 
-const createUser = async (userBody) => {
-  // try {
-  const { email } = userBody;
-  if (email !== null) {
-    // throw Boom.badRequest('Email already taken');
-    throw new ApiError(httpStatus.BAD_REQUEST, 'Email already taken');
+const { BACKOFFICE } = require('../middlewares/constants/backoffice').MODULE;
+
+class Service {
+  static async Register(name, email, role, password, module) {
+    // const normalized_name = normalizeName(name);
+
+    const { data, error } = await supabase.auth.signUp({
+      email,
+      password,
+      options: {
+        data: {
+          name,
+          role,
+          module,
+        },
+      },
+    });
+
+    if (error) throw error;
+
+    return data;
   }
 
-  return userBody;
-  // } catch (e) {
-  //   console.log("Error Service...");
-  //   throw e;
-  // }
-};
+  static async Login(email, password) {
+    const { data: user, error: userError } = await supabase
+      .from('user')
+      .select('email, deleted_at, role(name, module_name)')
+      .eq('email', email)
+      .single();
 
-/**
- * Login with username and password
- * @param {string} email
- * @param {string} password
- * @returns {Promise<User>}
- */
-const loginUserWithEmailAndPassword = async (email, password) => {
-  const user = await userService.getUserByEmail(email);
-  if (!user || !(await user.isPasswordMatch(password))) {
-    throw new ApiError(httpStatus.UNAUTHORIZED, 'Incorrect email or password');
+    if (userError || !user) throw new ApiError(httpStatus.UNAUTHORIZED, 'Wrong Email.');
+
+    if (user.deleted_at)
+      throw new ApiError(
+        httpStatus.NOT_FOUND,
+        'The user account associated with the provided email address has been deleted.'
+      );
+
+    if (user.role.module_name !== BACKOFFICE)
+      throw new ApiError(httpStatus.FORBIDDEN, 'Access to Backoffice is unauthorized.');
+
+    const { data, error } = await supabase.auth.signInWithPassword({
+      email,
+      password,
+    });
+
+    if (error) throw new ApiError(httpStatus.UNAUTHORIZED, 'Wrong Password.');
+
+    const { data: profile, error: profileError } = await supabase
+      .from('user')
+      .select('id, name, email, employee_number, status, role(name, module_name)')
+      .eq('id', data.user.id)
+      .single();
+
+    if (profileError) throw profileError;
+    return { ...data, profile };
   }
-  return user;
-};
 
-/**
- * Logout
- * @param {string} refreshToken
- * @returns {Promise}
- */
-const logout = async (refreshToken) => {
-  const refreshTokenDoc = await Token.findOne({ token: refreshToken, type: tokenTypes.REFRESH, blacklisted: false });
-  if (!refreshTokenDoc) {
-    throw new ApiError(httpStatus.NOT_FOUND, 'Not found');
-  }
-  await refreshTokenDoc.remove();
-};
+  static async ForgotPassword(email, redirectTo) {
+    const checkEmail = await supabase.from('user').select('email').eq('email', email);
 
-/**
- * Refresh auth tokens
- * @param {string} refreshToken
- * @returns {Promise<Object>}
- */
-const refreshAuth = async (refreshToken) => {
-  try {
-    const refreshTokenDoc = await tokenService.verifyToken(refreshToken, tokenTypes.REFRESH);
-    const user = await userService.getUserById(refreshTokenDoc.user);
-    if (!user) {
-      throw new Error();
+    if (checkEmail.data.length < 1) throw new ApiError(httpStatus.UNAUTHORIZED, 'Email is not registered.');
+
+    const resertPassword = await supabase.auth.resetPasswordForEmail(email, {
+      redirectTo,
+    });
+
+    if (resertPassword.error) {
+      throw resertPassword.error;
     }
-    await refreshTokenDoc.remove();
-    return tokenService.generateAuthTokens(user);
-  } catch (error) {
-    throw new ApiError(httpStatus.UNAUTHORIZED, 'Please authenticate');
-  }
-};
 
-/**
- * Reset password
- * @param {string} resetPasswordToken
- * @param {string} newPassword
- * @returns {Promise}
- */
-const resetPassword = async (resetPasswordToken, newPassword) => {
-  try {
-    const resetPasswordTokenDoc = await tokenService.verifyToken(resetPasswordToken, tokenTypes.RESET_PASSWORD);
-    const user = await userService.getUserById(resetPasswordTokenDoc.user);
-    if (!user) {
-      throw new Error();
+    return null;
+  }
+
+  static async ResetPassword(newPassword, reEnterNewPassword, accessToken, refreshToken) {
+    if (newPassword !== reEnterNewPassword)
+      throw new ApiError(
+        httpStatus.BAD_REQUEST,
+        'Passwords do not match. Please ensure both entries are the same and try again.'
+      );
+
+    const session = await supabase.auth.setSession({
+      access_token: accessToken,
+      refresh_token: refreshToken,
+    });
+
+    if (session.error) throw session.error;
+
+    const updateUser = await supabase.auth.updateUser({
+      password: newPassword,
+    });
+    if (updateUser.error) {
+      throw updateUser.error;
     }
-    await userService.updateUserById(user.id, { password: newPassword });
-    await Token.deleteMany({ user: user.id, type: tokenTypes.RESET_PASSWORD });
-  } catch (error) {
-    throw new ApiError(httpStatus.UNAUTHORIZED, 'Password reset failed');
+    return updateUser.data;
   }
-};
 
-/**
- * Verify email
- * @param {string} verifyEmailToken
- * @returns {Promise}
- */
-const verifyEmail = async (verifyEmailToken) => {
-  try {
-    const verifyEmailTokenDoc = await tokenService.verifyToken(verifyEmailToken, tokenTypes.VERIFY_EMAIL);
-    const user = await userService.getUserById(verifyEmailTokenDoc.user);
-    if (!user) {
-      throw new Error();
-    }
-    await Token.deleteMany({ user: user.id, type: tokenTypes.VERIFY_EMAIL });
-    await userService.updateUserById(user.id, { isEmailVerified: true });
-  } catch (error) {
-    throw new ApiError(httpStatus.UNAUTHORIZED, 'Email verification failed');
+  static async Logout(accessToken) {
+    const { error } = await supabase.from('revoke_token').insert({ token: accessToken }).select();
+
+    if (error) throw error;
+
+    const {
+      data: { user },
+    } = await supabase.auth.getUser(accessToken);
+
+    if (!user) throw new ApiError(httpStatus.UNAUTHORIZED, 'Invalid Authentication Token.');
+
+    const { data: publicUser, error: publicUserError } = await supabase.from('user').select('*, role(*)').eq('id', user.id);
+
+    if (publicUserError) throw new ApiError(httpStatus.INTERNAL_SERVER_ERROR, publicUserError);
+    return `${publicUser[0].email} has been logged out.`;
   }
-};
+}
 
-module.exports = {
-  createUser,
-  loginUserWithEmailAndPassword,
-  logout,
-  refreshAuth,
-  resetPassword,
-  verifyEmail,
-};
+module.exports = Service;

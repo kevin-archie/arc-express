@@ -49,6 +49,9 @@ if (config.env === 'production') {
   app.use('/v1/auth', authLimiter);
 }
 
+app.get('/test', (req, res) => {
+  res.send(`Server running in ${process.env.NODE_ENV} environment.🚀 ${process.env.DB_PORT}`);
+});
 // v1 api routes
 app.use('/api/v1', routes);
 

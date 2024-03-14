@@ -1,43 +1,77 @@
-const httpStatus = require('http-status');
-const pick = require('../utils/pick');
-const ApiError = require('../utils/ApiError');
-const catchAsync = require('../utils/catchAsync');
-const { userService } = require('../services');
+const { success } = require('../utils/response');
+const Service = require('../services/user.service');
 
-const createUser = catchAsync(async (req, res) => {
-  const user = await userService.createUser(req.body);
-  res.status(httpStatus.CREATED).send(user);
-});
+class Controller {
+  static async ListUser(req, res, next) {
+    try {
+      const { page, limit, search, sortBy, status } = req.query;
 
-const getUsers = catchAsync(async (req, res) => {
-  const filter = pick(req.query, ['name', 'role']);
-  const options = pick(req.query, ['sortBy', 'limit', 'page']);
-  const result = await userService.queryUsers(filter, options);
-  res.send(result);
-});
-
-const getUser = catchAsync(async (req, res) => {
-  const user = await userService.getUserById(req.params.userId);
-  if (!user) {
-    throw new ApiError(httpStatus.NOT_FOUND, 'User not found');
+      const result = await Service.ListUser(page, limit, search, status, sortBy, req.current_module);
+      success(res, 200, 'Successfully get list admin.', result);
+    } catch (err) {
+      next(err);
+    }
   }
-  res.send(user);
-});
 
-const updateUser = catchAsync(async (req, res) => {
-  const user = await userService.updateUserById(req.params.userId, req.body);
-  res.send(user);
-});
+  static async DetailUser(req, res, next) {
+    try {
+      const { id } = req.query;
 
-const deleteUser = catchAsync(async (req, res) => {
-  await userService.deleteUserById(req.params.userId);
-  res.status(httpStatus.NO_CONTENT).send();
-});
+      const result = await Service.DetailUser(id);
 
-module.exports = {
-  createUser,
-  getUsers,
-  getUser,
-  updateUser,
-  deleteUser,
-};
+      success(res, 200, `Successfully get detail admin.`, result);
+    } catch (err) {
+      next(err);
+    }
+  }
+
+  static async UpdateUser(req, res, next) {
+    try {
+      const { id, name, email, role } = req.body;
+
+      const result = await Service.UpdateUser(id, name, email, role);
+
+      success(res, 200, `Successfully edit admin.`, result);
+    } catch (err) {
+      next(err);
+    }
+  }
+
+  static async CreateUser(req, res, next) {
+    try {
+      const { name, email, role, module, redirectTo } = req.body;
+
+      const result = await Service.CreateUser(name, email, role, module, redirectTo);
+
+      success(res, 200, `Successfully send email to ${email}`, result);
+    } catch (err) {
+      next(err);
+    }
+  }
+
+  static async ResendInvitationEmail(req, res, next) {
+    try {
+      const { email, redirectTo } = req.body;
+
+      const result = await Service.ResendInvitationEmail(email, redirectTo);
+
+      success(res, 200, `Successfully resend invitation email to ${email}`, result);
+    } catch (err) {
+      next(err);
+    }
+  }
+
+  static async DeleteUser(req, res, next) {
+    try {
+      const { id } = req.query;
+
+      const result = await Service.DeleteUser(id);
+
+      success(res, 200, `Successfully delete admin sales.`, result);
+    } catch (err) {
+      next(err);
+    }
+  }
+}
+
+module.exports = Controller;

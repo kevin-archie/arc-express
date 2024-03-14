@@ -1,3 +1,5 @@
+const moment = require('moment');
+
 const mongoose = require('mongoose');
 const httpStatus = require('http-status');
 const config = require('../config/config');
@@ -26,8 +28,12 @@ const errorHandler = (err, req, res, next) => {
   res.locals.errorMessage = err.message;
 
   const response = {
-    code: statusCode,
-    message,
+    statusCode,
+    timestamp: `${moment().format('YYYY-MM-DD HH:mm:ss')} (Asia/Jakarta)`,
+    success: false,
+    message: null,
+    data: null,
+    error: message,
     ...(config.env === 'development' && { stack: err.stack }),
   };
 
