@@ -12,11 +12,11 @@ const createUser = {
 
 const getUsers = {
   query: Joi.object().keys({
-    name: Joi.string(),
-    role: Joi.string(),
-    sortBy: Joi.string(),
-    limit: Joi.number().integer(),
-    page: Joi.number().integer(),
+    page: Joi.number(),
+    limit: Joi.number(),
+    search: Joi.string().allow('', null),
+    status: Joi.string().valid('Waiting for confirmation', 'Active', 'Not verified').allow('', null),
+    sort_by: Joi.string().allow('', null),
   }),
 };
 

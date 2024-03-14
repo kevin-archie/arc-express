@@ -6,7 +6,7 @@ class Controller {
     try {
       const { page, limit, search, sortBy, status } = req.query;
 
-      const result = await Service.ListUser(page, limit, search, status, sortBy, req.current_module);
+      const result = await Service.ListUser(page, limit, search, status, sortBy, req.current_user.module_name);
       success(res, 200, 'Successfully get list admin.', result);
     } catch (err) {
       next(err);
