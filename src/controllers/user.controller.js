@@ -7,7 +7,7 @@ class Controller {
       const { page, limit, search, sortBy, status } = req.query;
 
       const result = await Service.ListUser(page, limit, search, status, sortBy, req.current_user.module_name);
-      success(res, 200, 'Successfully get list admin.', result);
+      success(res, 200, 'Successfully get list users.', result);
     } catch (err) {
       next(err);
     }
@@ -15,11 +15,11 @@ class Controller {
 
   static async DetailUser(req, res, next) {
     try {
-      const { id } = req.query;
+      const { id } = req.params;
 
       const result = await Service.DetailUser(id);
 
-      success(res, 200, `Successfully get detail admin.`, result);
+      success(res, 200, `Successfully get detail user.`, result);
     } catch (err) {
       next(err);
     }
@@ -27,11 +27,13 @@ class Controller {
 
   static async UpdateUser(req, res, next) {
     try {
-      const { id, name, email, role } = req.body;
+      const { id } = req.params;
+
+      const { name, email, role } = req.body;
 
       const result = await Service.UpdateUser(id, name, email, role);
 
-      success(res, 200, `Successfully edit admin.`, result);
+      success(res, 200, `Successfully edit user.`, result);
     } catch (err) {
       next(err);
     }
@@ -63,11 +65,11 @@ class Controller {
 
   static async DeleteUser(req, res, next) {
     try {
-      const { id } = req.query;
+      const { id } = req.params;
 
       const result = await Service.DeleteUser(id);
 
-      success(res, 200, `Successfully delete admin sales.`, result);
+      success(res, 200, `Successfully delete users backoffice.`, result);
     } catch (err) {
       next(err);
     }

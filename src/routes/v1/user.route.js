@@ -13,11 +13,13 @@ router
   .get(authBackoffice, validate(userValidation.getUsers), UserController.ListUser);
 
 router
-  .route('/:userId/')
+  .route('/:id')
   .get(authBackoffice, validate(userValidation.getUser), UserController.DetailUser)
-  .patch(authBackoffice, validate(userValidation.updateUser), UserController.UpdateUser)
+  .put(authBackoffice, validate(userValidation.updateUser), UserController.UpdateUser)
   .delete(authBackoffice, validate(userValidation.deleteUser), UserController.DeleteUser);
 
-router.route('/:userId/resed').post(authBackoffice, validate(userValidation.getUser), UserController.ResendInvitationEmail);
+router
+  .route('/:id/resend')
+  .post(authBackoffice, validate(userValidation.resendInvitationEmail), UserController.ResendInvitationEmail);
 
 module.exports = router;

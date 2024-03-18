@@ -1,12 +1,12 @@
 const Joi = require('joi');
-const { password, objectId } = require('./custom.validation');
 
 const createUser = {
   body: Joi.object().keys({
-    email: Joi.string().required().email(),
-    password: Joi.string().required().custom(password),
     name: Joi.string().required(),
-    role: Joi.string().required().valid('user', 'admin'),
+    email: Joi.string().required().email(),
+    role: Joi.string().required().valid('admin', 'superadmin'),
+    module: Joi.string().valid('app', 'backoffice').required(),
+    redirectTo: Joi.string().uri().required(),
   }),
 };
 
@@ -22,26 +22,33 @@ const getUsers = {
 
 const getUser = {
   params: Joi.object().keys({
-    userId: Joi.string().custom(objectId),
+    id: Joi.string().guid().required(),
   }),
 };
 
 const updateUser = {
   params: Joi.object().keys({
-    userId: Joi.required().custom(objectId),
+    id: Joi.string().guid().required(),
   }),
   body: Joi.object()
     .keys({
-      email: Joi.string().email(),
-      password: Joi.string().custom(password),
-      name: Joi.string(),
+      name: Joi.string().allow('', null),
+      email: Joi.string().email().allow('', null),
+      role: Joi.string().valid('superadmin', 'admin').allow('', null),
     })
     .min(1),
 };
 
 const deleteUser = {
   params: Joi.object().keys({
-    userId: Joi.string().custom(objectId),
+    id: Joi.string().guid().required(),
+  }),
+};
+
+const resendInvitationEmail = {
+  body: Joi.object().keys({
+    email: Joi.string().required().email(),
+    redirectTo: Joi.string().uri().required(),
   }),
 };
 
@@ -51,4 +58,5 @@ module.exports = {
   getUser,
   updateUser,
   deleteUser,
+  resendInvitationEmail,
 };
