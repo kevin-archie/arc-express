@@ -20,7 +20,7 @@ if (config.env !== 'test') {
   app.use(morgan.errorHandler);
 }
 
-// set security HTTP headers
+// set security HTTP headers, protect app from security threats Cross Site Scripting (XSS) and click-jacking attackss
 app.use(helmet());
 
 // parse json request body
@@ -29,14 +29,13 @@ app.use(express.json());
 // parse urlencoded request body
 app.use(express.urlencoded({ extended: true }));
 
-// sanitize request data
+// sanitize request data (prevents query injection by escaping chars that could be used to execute scripts)
 app.use(xss());
-// app.use(mongoSanitize());
 
-// gzip compression
+// gzip compression, decreases the downloadable amount of data that's served to users, improve performance
 app.use(compression());
 
-// enable cors
+// enable cors, validate allowed origin access
 app.use(cors());
 app.options('*', cors());
 
