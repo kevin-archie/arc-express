@@ -6,7 +6,7 @@ const { BACKOFFICE } = require('../middlewares/constants/backoffice').MODULE;
 
 class Service {
   static async ListUser(page, limit, search, status, sortBy, currentModule) {
-    let qry = await supabase
+    let qry = supabase
       .from('user')
       .select('*, role!inner(name, module_name)')
       .is('deleted_at', null)
@@ -25,19 +25,20 @@ class Service {
     if (sortBy) {
       sortParams = sortBy.split(',');
 
-      sortParams[1] = sortParams[1] === 'asc';
+      sortParams[1] = Boolean(sortParams[1] === 'asc');
     }
 
     qry = qry.order(sortParams[0], {
       ascending: sortParams[1],
     });
+
     const { data: admin, error: adminError } = await qry;
 
     if (adminError) {
       throw new ApiError(httpStatus.INTERNAL_SERVER_ERROR, adminError.message);
     }
 
-    // // Array to store promises for all update operations
+    // Array to store promises for all update operations
     // const updatePromises = [];
 
     // for (let i = 0; i < admin.length; i += 1) {
@@ -52,7 +53,7 @@ class Service {
     //   }
     // }
 
-    // // Wait for all update operations to complete
+    // Wait for all update operations to complete
     // await Promise.all(updatePromises);
 
     const result = pagination(page, limit, admin);

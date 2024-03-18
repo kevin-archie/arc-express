@@ -16,7 +16,7 @@ const getUsers = {
     limit: Joi.number(),
     search: Joi.string().allow('', null),
     status: Joi.string().valid('Waiting for confirmation', 'Active', 'Not verified').allow('', null),
-    sort_by: Joi.string().allow('', null),
+    sortBy: Joi.string().allow('', null),
   }),
 };
 
