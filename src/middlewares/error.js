@@ -1,5 +1,3 @@
-const moment = require('moment');
-
 const mongoose = require('mongoose');
 const httpStatus = require('http-status');
 const config = require('../config/config');
@@ -7,10 +5,10 @@ const logger = require('../config/logger');
 const ApiError = require('../utils/ApiError');
 
 const errorConverter = (err, req, res, next) => {
+  console.log("== CONV ===");
   let error = err;
   if (!(error instanceof ApiError)) {
-    const statusCode =
-      error.statusCode || error instanceof mongoose.Error ? httpStatus.BAD_REQUEST : httpStatus.INTERNAL_SERVER_ERROR;
+    const { statusCode } = error;
     const message = error.message || httpStatus[statusCode];
     error = new ApiError(statusCode, message, false, err.stack);
   }
@@ -19,7 +17,10 @@ const errorConverter = (err, req, res, next) => {
 
 // eslint-disable-next-line no-unused-vars
 const errorHandler = (err, req, res, next) => {
+  console.log("== HAND ===");
+
   let { statusCode, message } = err;
+  const { status } = err;
   if (config.env === 'production' && !err.isOperational) {
     statusCode = httpStatus.INTERNAL_SERVER_ERROR;
     message = httpStatus[httpStatus.INTERNAL_SERVER_ERROR];
@@ -28,12 +29,9 @@ const errorHandler = (err, req, res, next) => {
   res.locals.errorMessage = err.message;
 
   const response = {
-    statusCode,
-    timestamp: `${moment().format('YYYY-MM-DD HH:mm:ss')} (Asia/Jakarta)`,
-    success: false,
-    message: null,
-    data: null,
-    error: message,
+    status,
+    code: statusCode,
+    message,
     ...(config.env === 'development' && { stack: err.stack }),
   };
 

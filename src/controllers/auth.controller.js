@@ -1,66 +1,72 @@
-const { success } = require('../utils/response');
-const Service = require('../services/auth.service');
+const httpStatus = require('http-status');
+const catchAsync = require('../utils/catchAsync');
+const { authService, userService, tokenService, emailService } = require('../services');
+const { transformLoginResponse } = require('../utils/transformer');
 
-class Controller {
-  static async Register(req, res, next) {
-    try {
-      const { name, email, role, password, module } = req.body;
+const register = catchAsync(async (req, res) => {
+  const user = await userService.createUser(req.body);
+  res.status(httpStatus.CREATED).send({ user });
+});
 
-      const result = await Service.Register(name, email, role, password, module);
+const login = catchAsync(async (req, res) => {
+  const { email, password } = req.body;
+  const { type } = req.params;
 
-      success(res, 201, 'Successfully create new user', result);
-    } catch (err) {
-      next(err);
-    }
+  let user;
+  if (type === 'email-password') {
+    user = await authService.loginUserWithEmailAndPassword(email, password);
   }
 
-  static async Login(req, res, next) {
-    try {
-      const { email, password } = req.body;
+  res.send(transformLoginResponse(user));
+});
 
-      const result = await Service.Login(email, password);
+const logout = catchAsync(async (req, res) => {
+  await authService.logout(req.body.refreshToken);
+  res.status(httpStatus.NO_CONTENT).send();
+});
 
-      success(res, 200, 'Successfully login.', result);
-    } catch (err) {
-      next(err);
-    }
-  }
+const refreshTokens = catchAsync(async (req, res) => {
+  const tokens = await authService.refreshAuth(req.body.refreshToken);
+  res.send({ ...tokens });
+});
 
-  static async ForgotPassword(req, res, next) {
-    try {
-      const { email, redirectTo } = req.body;
+const forgotPassword = catchAsync(async (req, res) => {
+  const resetPasswordToken = await tokenService.generateResetPasswordToken(req.body.email);
+  await emailService.sendResetPasswordEmail(req.body.email, resetPasswordToken);
+  res.status(httpStatus.NO_CONTENT).send();
+});
 
-      const result = await Service.ForgotPassword(email, redirectTo);
+const resetPassword = catchAsync(async (req, res) => {
+  await authService.resetPassword(req.query.token, req.body.password);
+  res.status(httpStatus.NO_CONTENT).send();
+});
 
-      success(res, 200, `Email reset password has been sent to ${email}`, result);
-    } catch (err) {
-      next(err);
-    }
-  }
+const sendVerificationEmail = catchAsync(async (req, res) => {
+  const verifyEmailToken = await tokenService.generateVerifyEmailToken(req.user);
+  await emailService.sendVerificationEmail(req.user.email, verifyEmailToken);
+  res.status(httpStatus.NO_CONTENT).send();
+});
 
-  static async ResetPassword(req, res, next) {
-    try {
-      const { newPassword, reEnterNewPassword } = req.body;
-      const { accesstoken, refreshtoken } = req.headers;
+const verifyEmail = catchAsync(async (req, res) => {
+  await authService.verifyEmail(req.query.token);
+  res.status(httpStatus.NO_CONTENT).send();
+});
 
-      const result = await Service.ResetPassword(newPassword, reEnterNewPassword, accesstoken, refreshtoken);
+const resendEmailConfirmation = catchAsync(async (req, res) => {
+  // const verifyEmailToken = await tokenService.generateVerifyEmailToken(req.user);
 
-      success(res, 200, 'Successfully change password.', result);
-    } catch (err) {
-      next(err);
-    }
-  }
+  await authService.resendEmailConfirmation(req.query.credential);
+  res.status(httpStatus.NO_CONTENT).send();
+});
 
-  static async Logout(req, res, next) {
-    try {
-      const { accesstoken } = req.headers;
-
-      const result = await Service.Logout(accesstoken);
-      success(res, 200, 'Successfully logout.', result);
-    } catch (err) {
-      next(err);
-    }
-  }
-}
-
-module.exports = Controller;
+module.exports = {
+  register,
+  login,
+  logout,
+  refreshTokens,
+  forgotPassword,
+  resetPassword,
+  sendVerificationEmail,
+  verifyEmail,
+  resendEmailConfirmation,
+};
